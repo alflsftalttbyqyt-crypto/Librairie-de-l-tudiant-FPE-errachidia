@@ -6,13 +6,22 @@ import base64
 # إعداد الصفحة
 st.set_page_config(page_title="المكتبة الذكية - الراشيدية", layout="wide")
 
-# الرابط المباشر للتحميل (تم تحديثه ليعمل مباشرة بدون أخطاء)
+# الرابط المباشر للتحميل
 SHEETS_URL = "https://docs.google.com/spreadsheets/d/1oBDLx7XpHFh9JHz-kUxak4PMaAVEBC9Os22TFg7CAIo/export?format=csv"
 
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=60) # تم تقليل وقت الكاش إلى 60 ثانية لتحديث البيانات بشكل شبه لحظي للطلبة
 def load_data():
-    # استخدام pd.read_csv مباشرة مع رابط التصدير (Export)
-    return pd.read_csv(SHEETS_URL)
+    # جلب البيانات من جوجل شيت
+    data = pd.read_csv(SHEETS_URL)
+    
+    # تحويل القيم الفارغة إلى نصوص فارغة لتجنب أخطاء (NaN)
+    data = data.fillna("")
+    
+    # تنظيف المسافات الزائدة من بدايات ونهايات الكلمات في كل الأعمدة تلقائياً لمنع أخطاء التطابق
+    for col in data.columns:
+        data[col] = data[col].astype(str).str.strip()
+        
+    return data
 
 # --- نظام الدخول الأكاديمي المعدل والصارم ---
 if 'logged_in' not in st.session_state:
@@ -230,7 +239,7 @@ try:
                         st.write(f"📖 **{short_title}**")
                         
                         link = row['رابط التحميل']
-                        if pd.notna(link) and str(link).strip() != "":
+                        if link != "":
                             st.link_button("تحميل / عرض", str(link), key=f"btn_{sem}_{i}")
                         else:
                             st.caption("(سيتم إضافته قريباً)")
@@ -239,7 +248,10 @@ try:
 
     st.markdown("---")
     st.subheader("✨ مكتبة المراجع والمصادر الإثرائية ✨")
-    extra_books = filtered_df[filtered_df['الفصل'] == "عام"]
+    
+    # تمت تنقية البيانات مسبقاً في دالة التحميل، الكود هنا أصبح بسيطاً وآمناً 100%
+    extra_books = filtered_df[filtered_df['الفصل'] == "شامل"]
+    
     if not extra_books.empty:
         for i, (_, eb) in enumerate(extra_books.iterrows()):
             col_text, col_btn = st.columns([4, 1])
@@ -247,7 +259,7 @@ try:
                 st.write(f"📁 {eb['اسم الكتاب']}")
             with col_btn:
                 link = eb['رابط التحميل']
-                if pd.notna(link) and str(link).strip() != "":
+                if link != "":
                     st.link_button("تحميل / عرض", str(link), key=f"extra_btn_{i}")
     else:
         st.info("لا توجد مراجع إضافية مضافة بعد في هذه الشعبة.")
